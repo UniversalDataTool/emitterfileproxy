@@ -4,53 +4,47 @@ import time
 load_dotenv(verbose=True)
 
 import requests
-from emitter import Client
 import os
 
-access = requests.get("http://localhost:3000/api/channel").json()
+import threading
 
-print("got access", access)
+# server_url = "http://localhost:3000"
+server_url = "https://emitterfileproxy.universaldatatool.com"
 
-emitter = Client()
+access = requests.get(server_url + "/api/channel").json()
 
-print("connecting...")
-emitter.connect(
-    host=os.getenv("EMITTER_HOST"), port=int(os.getenv("EMITTER_PORT")), secure=False,
-)
-
-print("subscribing...")
-print(access["channel"])
-print(
-    "try requesting", "http://localhost:3000/api/{}/file.txt".format(access["channel"]),
-)
-emitter.subscribe(access["key"], access["channel"] + "/request")
+got_file_time = 0
 
 
-def respond_with_file(packet):
-    print(packet.as_binary())
-    packet = packet.as_binary().decode("ascii")
-    print(packet)
-    file, respondHash = packet.split(",")
-    print(""" "{}", "{}" """.format(file, respondHash))
-    print("responding to request for", file)
-    print(access["channel"] + "/" + respondHash)
-    emitter.publish(
-        access["key"], access["channel"] + "/" + respondHash, "this is the file",
-    )
+def thread_func():
+    global got_file_time
+    while True:
+        res = requests.get(server_url + "/api/{}".format(access["channel"])).json()
+        for filename in res["requestedFiles"]:
+            got_file_time = time.time()
+            requests.post(
+                server_url + "/api/{}/{}".format(access["channel"], filename),
+                files={"file": open("./bird.jpg", "rb")},
+            )
+        time.sleep(0.1)
 
 
-emitter.on_message = lambda x: respond_with_file(x)
+x = threading.Thread(target=thread_func, daemon=True)
+x.start()
 
-
-print("starting loop...")
-emitter.loop_start()
-
+time.sleep(0.5)
+start = time.time()
 file_content = requests.get(
-    "http://localhost:3000/api/{}/file.txt".format(access["channel"])
-).text
+    server_url + "/api/{}/bird.jpg".format(access["channel"])
+).content
+end = time.time()
 
-print("file_content", file_content)
+print("request time (s):", end - start)
+print("time to ack (s):", got_file_time - start)
 
-while True:
-    time.sleep(1)
-    emitter.loop_start()
+if len(file_content) < 100:
+    print(file_content)
+
+print("len(file_content)", len(file_content))
+
+print("END")
