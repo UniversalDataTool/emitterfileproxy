@@ -1,0 +1,17 @@
+{
+  "name": "emitterfileproxy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "ava": "^3.12.1",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6"
+  },
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "emitter-io": "^1.39.0",
+    "micro": "^9.3.4",
+    "micro-query": "^0.3.0"
+  }
+}
