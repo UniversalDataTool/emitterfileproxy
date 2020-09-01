@@ -5,6 +5,8 @@ const { setRedisKey, getRedisKey, delRedisKey } = require("../../lib/redis.js")
 
 const SECONDS_TO_CACHE = 60 * 60
 
+const FILE_MAX_WAIT = 20000 // 20s
+
 module.exports = upload(async (req, res) => {
   let { channel, file } = { ...req.query, ...query(req) }
 
@@ -33,10 +35,12 @@ module.exports = upload(async (req, res) => {
       await setRedisKey([`${channel}:request:${file}`, true, "EX", 120])
     }
 
-    for (let i = 0; i < 10; i++) {
+    let startTime = Date.now()
+    for (let i = 0; ; i++) {
       fileData = await getRedisKey(`${channel}:bin:${file}`)
       if (fileData) break
-      await new Promise((resolve) => setTimeout(resolve, i * 50))
+      if (Date.now() - startTime > FILE_MAX_WAIT) break
+      await new Promise((resolve) => setTimeout(resolve, i ** 1.5 * 50))
     }
 
     if (!fileData) {
